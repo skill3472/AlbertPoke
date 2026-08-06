@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     ALTCHA_MAX_NUMBER: int = 100_000
     ALTCHA_CHALLENGE_EXPIRE_MINUTES: int = 10
 
+    # Pokes
+    POKE_RATE_LIMIT_SECONDS: int = 60
+
     model_config = SettingsConfigDict(env_file='.env')
 
 settings = Settings()
