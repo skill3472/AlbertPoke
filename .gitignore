@@ -4,3 +4,5 @@ __pycache__/
 .env
 *.db
 .ruff_cache/
+front/node_modules/
+front/dist

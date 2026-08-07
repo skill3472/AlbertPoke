@@ -3,7 +3,8 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -20,11 +21,20 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     yield
 
 
-app = FastAPI(lifespan=lifespan, prefix="/api")
+app = FastAPI(lifespan=lifespan)
 
-app.include_router(users_router, prefix="/users")
-app.include_router(friends_router, prefix="/friends")
-app.include_router(pokes_router, prefix="/pokes")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+api_router = APIRouter(prefix="/api")
+api_router.include_router(users_router, prefix="/users")
+api_router.include_router(friends_router, prefix="/friends")
+api_router.include_router(pokes_router, prefix="/pokes")
+app.include_router(api_router)
 
 if __name__ == "__main__":
     import uvicorn

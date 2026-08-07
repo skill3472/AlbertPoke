@@ -4,8 +4,10 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from config import settings
-from pokes.exceptions import CannotPokeSelfError, PokeRateLimitedError
-from pokes.models import PokeResponse, PokeStatus
+from friends.models import FriendBrief
+from friends.service import are_mutual_friends
+from pokes.exceptions import CannotPokeSelfError, NotMutualFriendsError, PokeRateLimitedError
+from pokes.models import PokeResponse, PokeStatus, PokeThread
 from pokes.schemas import Poke
 from users.exceptions import UserNotFoundError
 from users.schemas import User
@@ -31,7 +33,44 @@ class PokeService:
         return PokeStatus(
             can_poke=self._can_poke(other_user_id),
             streak=self._streak(other_user_id),
+            mutual=are_mutual_friends(self.db, self.logged_in_user_id, other_user_id),
         )
+
+    def list_threads(self) -> list[PokeThread]:
+        """
+        Lists every user the current user has an ongoing poke thread with, i.e. has ever
+        poked or been poked by.
+
+        Returns:
+            list[PokeThread]: the other user, the pair's streak, whether the current user
+                can poke now, and whether the current user sent the most recent poke
+        """
+        stmt = select(Poke.from_user_id, Poke.to_user_id).where(
+            or_(
+                Poke.from_user_id == self.logged_in_user_id,
+                Poke.to_user_id == self.logged_in_user_id,
+            )
+        )
+        other_user_ids = {
+            to_id if from_id == self.logged_in_user_id else from_id
+            for from_id, to_id in self.db.execute(stmt).all()
+        }
+
+        threads = []
+        for other_id in other_user_ids:
+            other_user = self._get_user(other_id)
+            last_poke = self._last_poke_between(other_id)
+            threads.append(
+                PokeThread(
+                    user=FriendBrief.model_validate(other_user),
+                    streak=self._streak(other_id),
+                    can_poke=self._can_poke(other_id),
+                    last_poke_mine=last_poke is not None
+                    and last_poke.from_user_id == self.logged_in_user_id,
+                    mutual=are_mutual_friends(self.db, self.logged_in_user_id, other_id),
+                )
+            )
+        return threads
 
     def poke(self, other_user_id: int) -> PokeResponse:
         """
@@ -45,11 +84,15 @@ class PokeService:
 
         Raises:
             CannotPokeSelfError: if the current user tries to poke themselves
+            NotMutualFriendsError: if the two users are not mutual friends
             PokeRateLimitedError: if it isn't the current user's turn, or the rate limit hasn't elapsed
         """
         if other_user_id == self.logged_in_user_id:
             raise CannotPokeSelfError("You cannot poke yourself.")
         self._get_user(other_user_id)
+
+        if not are_mutual_friends(self.db, self.logged_in_user_id, other_user_id):
+            raise NotMutualFriendsError("You can only poke mutual friends.")
 
         if not self._can_poke(other_user_id):
             raise PokeRateLimitedError(
@@ -101,6 +144,9 @@ class PokeService:
         return self.db.execute(stmt).scalar_one()
 
     def _can_poke(self, other_user_id: int) -> bool:
+        if not are_mutual_friends(self.db, self.logged_in_user_id, other_user_id):
+            return False
+
         last_poke = self._last_poke_between(other_user_id)
         if last_poke is None:
             return True

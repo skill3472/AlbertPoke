@@ -3,11 +3,27 @@ from sqlalchemy.orm import Session
 
 from common.auth import get_current_user
 from common.db import get_db
-from pokes.models import PokeResponse, PokeStatus
+from pokes.models import PokeResponse, PokeStatus, PokeThread
 from pokes.service import PokeService
 from users.schemas import User
 
 pokes_router = APIRouter()
+
+
+@pokes_router.get("/threads")
+def list_poke_threads(
+    current_user: User = Security(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[PokeThread]:
+    """
+    Lists every user the current user has an ongoing poke thread with.
+
+    Returns:
+        list[PokeThread]: the other user, the pair's streak, whether the current user
+            can poke now, and whether the current user sent the most recent poke
+    """
+    service = PokeService(db, current_user.id)
+    return service.list_threads()
 
 
 @pokes_router.get("/check")

@@ -1,5 +1,6 @@
-from typing import Literal
 from pydantic import BaseModel
+
+from friends.models import FriendBrief
 
 
 class PokeResponse(BaseModel):
@@ -11,3 +12,12 @@ class PokeResponse(BaseModel):
 class PokeStatus(BaseModel):
     can_poke: bool
     streak: int
+    mutual: bool
+
+
+class PokeThread(BaseModel):
+    user: FriendBrief
+    streak: int
+    can_poke: bool
+    last_poke_mine: bool
+    mutual: bool

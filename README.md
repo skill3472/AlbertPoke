@@ -1,19 +1,21 @@
 # AlbertPoke
-A gag social platform, supposed Facebook Pokes alternative. In active development.
+A gag social platform, supposed Facebook Pokes alternative.
 
 ## To do
 
 ### v1
-- [ ] Whole poke module
-    - [ ] Streaks
-- [ ] Whole frontend (svelte or plain jinja?)
-    - [ ] Poke screen
-    - [ ] Login screen
-    - [ ] Register screen
-    - [ ] Find friends screen
-    - [ ] View profile
-    - [ ] Browser notifications
+- [x] Whole poke module
+    - [x] Streaks
+- [x] Whole frontend (svelte or plain jinja?)
+    - [x] Poke screen
+    - [x] Login screen
+    - [x] Register screen
+    - [x] Find friends screen
+    - [x] View profile
+    - [x] Browser notifications
 
 ### v2
 - [ ] Avatars
-- [ ] Leaderboards
+- [ ] Leaderboards (global and friends only)
+- [ ] Themes in user settings
+- [ ] 2FA? xD

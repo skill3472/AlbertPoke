@@ -1,0 +1,27 @@
+{
+  "name": "albert_poke",
+  "version": "1.0.0",
+  "description": "A gag social platform, supposed Facebook Pokes alternative.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json"
+  },
+  "author": "Maksymilian Tym",
+  "license": "ISC",
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^6.2.1",
+    "@tailwindcss/vite": "^4.3.3",
+    "@tsconfig/svelte": "^5.0.8",
+    "svelte": "^5.56.8",
+    "svelte-check": "^4.7.5",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.3"
+  },
+  "dependencies": {
+    "altcha": "^3.2.1"
+  }
+}
