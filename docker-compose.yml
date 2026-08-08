@@ -9,7 +9,7 @@ services:
   frontend:
     image: ${FRONTEND_IMAGE_NAME}
     ports:
-      - "80:80"
+      - "127.0.0.1:2137:80"
     depends_on:
       - backend
     restart: unless-stopped
