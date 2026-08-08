@@ -19,5 +19,5 @@ A gag social platform, supposed Facebook Pokes alternative.
 - [ ] Leaderboards (global and friends only)
 - [ ] Themes in user settings
 - [ ] Sounds
-- [ ] Fixing mobile layout
+- [x] Fixing mobile layout
 - [ ] 2FA? xD
