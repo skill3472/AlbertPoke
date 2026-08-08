@@ -13,6 +13,7 @@ from common.db import engine
 from common.schemas import Base
 from friends.router import friends_router
 from pokes.router import pokes_router
+from push.router import push_router
 from users.router import users_router
 
 
@@ -35,6 +36,7 @@ api_router = APIRouter(prefix="/api")
 api_router.include_router(users_router, prefix="/users")
 api_router.include_router(friends_router, prefix="/friends")
 api_router.include_router(pokes_router, prefix="/pokes")
+api_router.include_router(push_router, prefix="/push")
 app.include_router(api_router)
 
 if __name__ == "__main__":

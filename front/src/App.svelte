@@ -32,9 +32,7 @@
 
   $effect(() => {
     if (auth.isAuthenticated) {
-      notifications.startPolling();
-    } else {
-      notifications.stopPolling();
+      void notifications.ensureSubscribed();
     }
   });
 </script>

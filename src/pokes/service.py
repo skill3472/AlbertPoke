@@ -9,6 +9,7 @@ from friends.service import are_mutual_friends
 from pokes.exceptions import CannotPokeSelfError, NotMutualFriendsError, PokeRateLimitedError
 from pokes.models import PokeResponse, PokeStatus, PokeThread
 from pokes.schemas import Poke
+from push.service import notify_user
 from users.exceptions import UserNotFoundError
 from users.schemas import User
 
@@ -102,10 +103,24 @@ class PokeService:
         self.db.add(Poke(from_user_id=self.logged_in_user_id, to_user_id=other_user_id))
         self.db.commit()
 
+        streak = self._streak(other_user_id)
+
+        # Only push if it's actually the recipient's turn to act (mirrors _can_poke
+        # from their side) - they may still owe their own rate-limit cooldown even
+        # though we just poked them, and a push that arrives before they can act
+        # back would be premature.
+        if PokeService(self.db, other_user_id)._can_poke(self.logged_in_user_id):
+            notify_user(
+                self.db,
+                other_user_id,
+                title=f"{self.logged_in_user.name} poked you!",
+                body=f"Streak: {streak}",
+            )
+
         return PokeResponse(
             user_id=other_user_id,
             success=True,
-            current_streak=self._streak(other_user_id),
+            current_streak=streak,
         )
 
     def _get_user(self, user_id: int) -> User:

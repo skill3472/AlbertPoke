@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     # Pokes
     POKE_RATE_LIMIT_SECONDS: int = 60
 
+    # Web Push (VAPID)
+    VAPID_PUBLIC_KEY: str
+    VAPID_PRIVATE_KEY: str
+    VAPID_SUBJECT: str
+
     model_config = SettingsConfigDict(env_file=Path(__file__).parent / ".env")
 
 settings = Settings()

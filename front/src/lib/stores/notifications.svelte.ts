@@ -1,78 +1,107 @@
-import { listPokeThreads } from "../api/pokes";
+import { getVapidPublicKey, subscribePush, unsubscribePush } from "../api/push";
 
-const POLL_INTERVAL_MS = 15_000;
 const PREFERENCE_KEY = "albertpoke:notify";
+const SW_URL = "/sw.js";
 
-function browserSupportsNotifications(): boolean {
-  return typeof Notification !== "undefined";
+function browserSupportsPush(): boolean {
+  return (
+    typeof Notification !== "undefined" && "serviceWorker" in navigator && "PushManager" in window
+  );
+}
+
+function urlBase64ToUint8Array(base64Url: string): Uint8Array<ArrayBuffer> {
+  const padding = "=".repeat((4 - (base64Url.length % 4)) % 4);
+  const base64 = (base64Url + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) {
+    bytes[i] = raw.charCodeAt(i);
+  }
+  return bytes;
 }
 
 class NotificationStore {
   permission = $state<NotificationPermission>(
-    browserSupportsNotifications() ? Notification.permission : "denied",
+    browserSupportsPush() ? Notification.permission : "denied",
   );
   enabled = $state(localStorage.getItem(PREFERENCE_KEY) === "1");
 
-  private previousCanPoke = new Map<number, boolean>();
-  private baselineSet = false;
-  private timer: ReturnType<typeof setInterval> | null = null;
-
   get supported(): boolean {
-    return browserSupportsNotifications();
+    return browserSupportsPush();
   }
 
+  /** Prompts for permission and, if granted, registers a real push subscription. */
   async requestPermission(): Promise<void> {
     if (!this.supported) return;
     const result = await Notification.requestPermission();
     this.permission = result;
-    this.enabled = result === "granted";
-    localStorage.setItem(PREFERENCE_KEY, this.enabled ? "1" : "0");
-    if (this.enabled) this.startPolling();
-  }
 
-  disable(): void {
-    this.enabled = false;
-    localStorage.setItem(PREFERENCE_KEY, "0");
-    this.stopPolling();
-  }
-
-  startPolling(): void {
-    if (this.timer !== null || !this.enabled || this.permission !== "granted") return;
-    this.timer = setInterval(() => void this.poll(), POLL_INTERVAL_MS);
-    void this.poll();
-  }
-
-  stopPolling(): void {
-    if (this.timer !== null) {
-      clearInterval(this.timer);
-      this.timer = null;
-    }
-    this.baselineSet = false;
-    this.previousCanPoke.clear();
-  }
-
-  private async poll(): Promise<void> {
-    if (!this.enabled || this.permission !== "granted") return;
-
-    let threads;
-    try {
-      threads = await listPokeThreads();
-    } catch {
+    if (result !== "granted") {
+      this.setEnabled(false);
       return;
     }
 
-    for (const thread of threads) {
-      const wasAlreadyMyTurn = this.previousCanPoke.get(thread.user.id) === true;
-      const theyJustPokedMe = thread.can_poke && !thread.last_poke_mine && !wasAlreadyMyTurn;
-      if (this.baselineSet && theyJustPokedMe) {
-        new Notification(`${thread.user.name} poked you!`, {
-          body: `Streak: ${thread.streak}`,
-        });
-      }
-      this.previousCanPoke.set(thread.user.id, thread.can_poke);
+    try {
+      await this.subscribe();
+      this.setEnabled(true);
+    } catch {
+      this.setEnabled(false);
+    }
+  }
+
+  async disable(): Promise<void> {
+    this.setEnabled(false);
+    await this.unsubscribe();
+  }
+
+  /**
+   * Re-establishes the push subscription on app load if it was previously enabled.
+   * Push subscriptions can be dropped by the browser (e.g. expired keys), so this
+   * re-subscribes silently - no permission prompt, since it's already granted.
+   */
+  async ensureSubscribed(): Promise<void> {
+    if (!this.supported || !this.enabled || this.permission !== "granted") return;
+    try {
+      await this.subscribe();
+    } catch {
+      // Best-effort; the user can re-enable manually from their profile if this fails.
+    }
+  }
+
+  private setEnabled(value: boolean): void {
+    this.enabled = value;
+    localStorage.setItem(PREFERENCE_KEY, value ? "1" : "0");
+  }
+
+  private async subscribe(): Promise<void> {
+    const registration = await navigator.serviceWorker.register(SW_URL);
+    await navigator.serviceWorker.ready;
+
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      const { public_key } = await getVapidPublicKey();
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(public_key),
+      });
     }
 
-    this.baselineSet = true;
+    await subscribePush(subscription.toJSON() as PushSubscriptionJSON);
+  }
+
+  private async unsubscribe(): Promise<void> {
+    if (!this.supported) return;
+    const registration = await navigator.serviceWorker.getRegistration(SW_URL);
+    const subscription = await registration?.pushManager.getSubscription();
+    if (!subscription) return;
+
+    const endpoint = subscription.endpoint;
+    await subscription.unsubscribe();
+    await unsubscribePush(endpoint).catch(() => {
+      // Local unsubscribe already succeeded; a failure here just leaves a stale
+      // row server-side, which is pruned automatically the next time a push to
+      // it comes back expired.
+    });
   }
 }
 

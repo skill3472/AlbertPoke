@@ -44,6 +44,10 @@ export interface PokeThread {
   mutual: boolean;
 }
 
+export interface VapidPublicKey {
+  public_key: string;
+}
+
 export interface AltchaChallenge {
   algorithm: string;
   challenge: string;

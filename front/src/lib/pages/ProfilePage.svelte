@@ -71,12 +71,14 @@
 
   async function toggleNotifications(): Promise<void> {
     if (notifications.enabled) {
-      notifications.disable();
-    } else {
-      await notifications.requestPermission();
-      if (notifications.permission === "denied") {
-        toasts.push("Notifications are blocked in your browser settings.", "error");
-      }
+      await notifications.disable();
+      return;
+    }
+    await notifications.requestPermission();
+    if (notifications.permission === "denied") {
+      toasts.push("Notifications are blocked in your browser settings.", "error");
+    } else if (!notifications.enabled) {
+      toasts.push("Could not enable notifications. Please try again.", "error");
     }
   }
 </script>

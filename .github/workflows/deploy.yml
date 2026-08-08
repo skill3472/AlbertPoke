@@ -93,6 +93,9 @@ jobs:
             echo "DB_URL=sqlite:///./data/albertpoke.db" >> .env
             echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" >> .env
             echo "ALTCHA_HMAC_KEY=${{ secrets.ALTCHA_HMAC_KEY }}" >> .env
+            echo "VAPID_PUBLIC_KEY=${{ secrets.VAPID_PUBLIC_KEY }}" >> .env
+            echo "VAPID_PRIVATE_KEY=${{ secrets.VAPID_PRIVATE_KEY }}" >> .env
+            echo "VAPID_SUBJECT=${{ vars.VAPID_SUBJECT }}" >> .env
 
             docker compose pull
 
