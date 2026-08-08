@@ -10,6 +10,7 @@
   import { router, navigate, parseProfileId } from "./lib/router/router.svelte";
   import { auth } from "./lib/stores/auth.svelte";
   import { notifications } from "./lib/stores/notifications.svelte";
+  import { settings } from "./lib/stores/settings.svelte";
 
   const PUBLIC_PATHS = new Set(["/login", "/register"]);
 
@@ -33,6 +34,7 @@
   $effect(() => {
     if (auth.isAuthenticated) {
       void notifications.ensureSubscribed();
+      void settings.load();
     }
   });
 </script>

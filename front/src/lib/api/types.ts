@@ -48,6 +48,12 @@ export interface VapidPublicKey {
   public_key: string;
 }
 
+export type PokeLayout = "list" | "tiles";
+
+export interface UserSettings {
+  poke_layout: PokeLayout;
+}
+
 export interface AltchaChallenge {
   algorithm: string;
   challenge: string;

@@ -8,11 +8,28 @@
   import { navigate } from "../router/router.svelte";
   import { auth } from "../stores/auth.svelte";
   import { notifications } from "../stores/notifications.svelte";
+  import { settings } from "../stores/settings.svelte";
   import { toasts } from "../stores/toast.svelte";
+  import type { PokeLayout } from "../api/types";
 
   let { userId }: { userId?: number } = $props();
 
   const isOwnProfile = $derived(userId === undefined || userId === auth.user?.id);
+
+  let activeTab = $state<"profile" | "settings">("profile");
+
+  const layoutOptions: { value: PokeLayout; label: string }[] = [
+    { value: "list", label: "List" },
+    { value: "tiles", label: "Tiles" },
+  ];
+
+  async function setPokeLayout(layout: PokeLayout): Promise<void> {
+    try {
+      await settings.setPokeLayout(layout);
+    } catch (err) {
+      toasts.push(err instanceof Error ? err.message : "Could not save layout.", "error");
+    }
+  }
 
   let viewedUser = $state<UserRead | null>(null);
   let myFriends = $state<FriendBrief[]>([]);
@@ -126,57 +143,102 @@
       <h1 class="text-text font-mono text-2xl font-black tracking-tight uppercase">Profile</h1>
     </div>
 
-    <Card>
-      <p class="text-text-muted font-mono text-xs tracking-widest uppercase">Name</p>
-      <p class="text-text mt-1 font-mono text-xl font-bold">{auth.user?.name}</p>
-      <p class="text-text-muted mt-4 font-mono text-xs tracking-widest uppercase">User ID</p>
-      <p class="text-text mt-1 font-mono">#{auth.user?.id}</p>
-    </Card>
+    <div class="flex items-center gap-1 font-mono text-xs font-bold tracking-widest uppercase">
+      {#each [{ id: "profile", label: "Profile" }, { id: "settings", label: "Settings" }] as tab (tab.id)}
+        <button
+          type="button"
+          onclick={() => (activeTab = tab.id === "settings" ? "settings" : "profile")}
+          class="border-2 px-4 py-2 transition-colors {activeTab === tab.id
+            ? 'border-primary bg-primary text-primary-fg'
+            : 'text-text-dim hover:border-border-strong border-transparent hover:bg-surface-hover'}"
+        >
+          {tab.label}
+        </button>
+      {/each}
+    </div>
 
-    <Card>
-      <p class="text-text-muted font-mono text-xs tracking-widest uppercase">Browser Notifications</p>
-      <p class="text-text-dim mt-1 font-mono text-sm">
-        Get notified in your browser when a friend pokes you back.
-      </p>
-      <div class="mt-4">
-        {#if !notifications.supported}
-          <p class="text-text-muted font-mono text-xs uppercase">Not supported in this browser.</p>
-        {:else if notifications.permission === "denied"}
-          <p class="text-danger font-mono text-xs uppercase">Blocked — enable in browser settings.</p>
+    {#if activeTab === "profile"}
+      <Card>
+        <p class="text-text-muted font-mono text-xs tracking-widest uppercase">Name</p>
+        <p class="text-text mt-1 font-mono text-xl font-bold">{auth.user?.name}</p>
+        <p class="text-text-muted mt-4 font-mono text-xs tracking-widest uppercase">User ID</p>
+        <p class="text-text mt-1 font-mono">#{auth.user?.id}</p>
+      </Card>
+
+      <div>
+        <h2 class="text-text font-mono text-lg font-bold tracking-tight uppercase">
+          Friends ({myFriends.length})
+        </h2>
+        {#if myFriends.length === 0}
+          <Card class="mt-3">
+            <p class="text-text font-mono">You haven't added any friends yet.</p>
+            <a
+              href="#/find-friends"
+              class="text-link mt-2 inline-block font-mono text-sm underline"
+            >
+              Find friends &rarr;
+            </a>
+          </Card>
         {:else}
-          <Button
-            variant={notifications.enabled ? "secondary" : "primary"}
-            size="sm"
-            onclick={toggleNotifications}
-          >
-            {notifications.enabled ? "Disable" : "Enable"} Notifications
-          </Button>
+          <div class="mt-3 flex flex-col gap-2">
+            {#each myFriends as friend (friend.id)}
+              <a href="#/profile/{friend.id}" class="block">
+                <Card class="hover:bg-surface-hover p-4! transition-colors">
+                  <span class="text-text font-mono">{friend.name}</span>
+                </Card>
+              </a>
+            {/each}
+          </div>
         {/if}
       </div>
-    </Card>
+    {:else}
+      <Card>
+        <p class="text-text-muted font-mono text-xs tracking-widest uppercase">
+          Browser Notifications
+        </p>
+        <p class="text-text-dim mt-1 font-mono text-sm">
+          Get notified in your browser when a friend pokes you back.
+        </p>
+        <div class="mt-4">
+          {#if !notifications.supported}
+            <p class="text-text-muted font-mono text-xs uppercase">
+              Not supported in this browser.
+            </p>
+          {:else if notifications.permission === "denied"}
+            <p class="text-danger font-mono text-xs uppercase">
+              Blocked — enable in browser settings.
+            </p>
+          {:else}
+            <Button
+              variant={notifications.enabled ? "secondary" : "primary"}
+              size="sm"
+              onclick={toggleNotifications}
+            >
+              {notifications.enabled ? "Disable" : "Enable"} Notifications
+            </Button>
+          {/if}
+        </div>
+      </Card>
 
-    <div>
-      <h2 class="text-text font-mono text-lg font-bold tracking-tight uppercase">
-        Friends ({myFriends.length})
-      </h2>
-      {#if myFriends.length === 0}
-        <Card class="mt-3">
-          <p class="text-text font-mono">You haven't added any friends yet.</p>
-          <a href="#/find-friends" class="text-link mt-2 inline-block font-mono text-sm underline">
-            Find friends &rarr;
-          </a>
-        </Card>
-      {:else}
-        <div class="mt-3 flex flex-col gap-2">
-          {#each myFriends as friend (friend.id)}
-            <a href="#/profile/{friend.id}" class="block">
-              <Card class="hover:bg-surface-hover p-4! transition-colors">
-                <span class="text-text font-mono">{friend.name}</span>
-              </Card>
-            </a>
+      <Card>
+        <p class="text-text-muted font-mono text-xs tracking-widest uppercase">
+          Poke Screen Layout
+        </p>
+        <p class="text-text-dim mt-1 font-mono text-sm">
+          Choose how your pokeable friends are shown on the Poke screen.
+        </p>
+        <div class="mt-4 flex gap-2">
+          {#each layoutOptions as option (option.value)}
+            <Button
+              size="sm"
+              variant={settings.pokeLayout === option.value ? "primary" : "secondary"}
+              onclick={() => setPokeLayout(option.value)}
+            >
+              {option.label}
+            </Button>
           {/each}
         </div>
-      {/if}
-    </div>
+      </Card>
+    {/if}
   {/if}
 </div>

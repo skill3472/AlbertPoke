@@ -5,7 +5,9 @@
   import { checkPoke, listPokeThreads, sendPoke } from "../api/pokes";
   import Card from "../components/Card.svelte";
   import PokeButton from "../components/PokeButton.svelte";
+  import PokeListRow from "../components/PokeListRow.svelte";
   import type { PokeButtonStatus } from "../components/pokeButtonStatus";
+  import { settings } from "../stores/settings.svelte";
   import { toasts } from "../stores/toast.svelte";
 
   interface PokeEntry {
@@ -110,7 +112,7 @@
         Find friends to poke &rarr;
       </a>
     </Card>
-  {:else}
+  {:else if settings.pokeLayout === "tiles"}
     <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
       {#each entries as entry (entry.id)}
         <Card class="flex items-center justify-center">
@@ -122,6 +124,18 @@
             onpoke={() => poke(entry)}
           />
         </Card>
+      {/each}
+    </div>
+  {:else}
+    <div class="flex flex-col gap-3">
+      {#each entries as entry (entry.id)}
+        <PokeListRow
+          name={entry.name}
+          streak={entry.streak}
+          status={statusFor(entry)}
+          pokeTrigger={entry.pokeTrigger}
+          onpoke={() => poke(entry)}
+        />
       {/each}
     </div>
   {/if}

@@ -72,6 +72,10 @@ export function apiPostJson<T>(path: string, body: unknown): Promise<T> {
   return request<T>(path, { method: "POST", body: JSON.stringify(body) });
 }
 
+export function apiPutJson<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, { method: "PUT", body: JSON.stringify(body) });
+}
+
 export function apiPostForm<T>(path: string, form: URLSearchParams): Promise<T> {
   return request<T>(path, { method: "POST", body: form });
 }
