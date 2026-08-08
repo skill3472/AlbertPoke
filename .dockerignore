@@ -1,0 +1,12 @@
+.git/
+.github/
+
+.venv/
+__pycache__/
+*.pyc
+.env
+*.db
+.ruff_cache/
+
+front/node_modules/
+front/dist/
