@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,6 +20,6 @@ class Settings(BaseSettings):
     # Pokes
     POKE_RATE_LIMIT_SECONDS: int = 60
 
-    model_config = SettingsConfigDict(env_file='.env')
+    model_config = SettingsConfigDict(env_file=Path(__file__).parent / ".env")
 
 settings = Settings()
