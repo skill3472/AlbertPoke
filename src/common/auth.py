@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 import bcrypt
 import jwt
-from fastapi import Depends, Security
+from fastapi import Depends, Query, Security, WebSocket, WebSocketException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -28,16 +28,7 @@ def create_access_token(user_id: int) -> str:
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
-def get_current_user(
-    token: str = Security(oauth2_scheme),
-    db: Session = Depends(get_db),
-) -> User:
-    """
-    Resolves the requesting user from a bearer JWT.
-
-    Raises:
-        InvalidCredentialsError: if the token is missing, invalid, expired, or its subject no longer exists.
-    """
+def _resolve_user(token: str, db: Session) -> User:
     try:
         payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
         user_id = int(payload["sub"])
@@ -48,3 +39,35 @@ def get_current_user(
     if user is None:
         raise InvalidCredentialsError("Could not validate credentials.")
     return user
+
+
+def get_current_user(
+    token: str = Security(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> User:
+    """
+    Resolves the requesting user from a bearer JWT.
+
+    Raises:
+        InvalidCredentialsError: if the token is missing, invalid, expired, or its subject no longer exists.
+    """
+    return _resolve_user(token, db)
+
+
+def get_current_user_ws(
+    websocket: WebSocket,
+    token: str = Query(...),
+    db: Session = Depends(get_db),
+) -> User:
+    """
+    Resolves the connecting user from a JWT passed as a `?token=` query param, since
+    browsers can't set an Authorization header on the WebSocket handshake.
+
+    Raises:
+        WebSocketException: (close code 1008) if the token is missing, invalid, expired,
+            or its subject no longer exists.
+    """
+    try:
+        return _resolve_user(token, db)
+    except InvalidCredentialsError as exc:
+        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION) from exc

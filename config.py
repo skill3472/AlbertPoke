@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     ALTCHA_CHALLENGE_EXPIRE_MINUTES: int = 10
 
     # Pokes
-    POKE_RATE_LIMIT_SECONDS: int = 60
+    POKE_RATE_LIMIT_SECONDS: int = 10
 
     # Web Push (VAPID)
     VAPID_PUBLIC_KEY: str

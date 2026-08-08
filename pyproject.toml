@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "altcha>=2.1.0",
+    "anyio>=4.14.2",
     "bcrypt>=5.0.0",
     "fastapi>=0.141.1",
     "pydantic>=2.13.4",
@@ -15,6 +16,7 @@ dependencies = [
     "pywebpush>=2.4.0",
     "sqlalchemy>=2.0.51",
     "uvicorn>=0.52.1",
+    "websockets>=17.0.1",
 ]
 
 [tool.ruff.lint.flake8-bugbear]

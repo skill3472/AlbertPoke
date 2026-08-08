@@ -1,13 +1,38 @@
-from fastapi import APIRouter, Depends, Security
+from fastapi import APIRouter, Depends, Security, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
-from common.auth import get_current_user
+from common.auth import get_current_user, get_current_user_ws
 from common.db import get_db
 from pokes.models import PokeResponse, PokeStatus, PokeThread
 from pokes.service import PokeService
+from pokes.ws_manager import poke_connections
 from users.schemas import User
 
 pokes_router = APIRouter()
+
+
+@pokes_router.websocket("/ws")
+async def poke_websocket(
+    websocket: WebSocket,
+    current_user: User = Depends(get_current_user_ws),
+) -> None:
+    """
+    Live feed of pokes received by the current user, so the frontend can flip a
+    friend's poke button back to "ready" the instant they poke, without a refresh.
+
+    Auth is a `?token=` query param (a bearer JWT, same as the REST API) since the
+    browser WebSocket API can't set an Authorization header. Sends one JSON message
+    per poke received: `{"type": "poke", "from_user_id", "from_user_name", "streak"}`.
+    The connection is otherwise passive - the server never expects incoming messages.
+    """
+    await poke_connections.connect(current_user.id, websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        poke_connections.disconnect(current_user.id, websocket)
 
 
 @pokes_router.get("/threads")

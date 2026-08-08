@@ -13,6 +13,7 @@ class PokeStatus(BaseModel):
     can_poke: bool
     streak: int
     mutual: bool
+    cooldown_seconds: int
 
 
 class PokeThread(BaseModel):
@@ -21,3 +22,4 @@ class PokeThread(BaseModel):
     can_poke: bool
     last_poke_mine: bool
     mutual: bool
+    cooldown_seconds: int

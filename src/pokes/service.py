@@ -1,14 +1,21 @@
 from datetime import UTC, datetime, timedelta
+from math import ceil
 
+from anyio.from_thread import run as run_async_from_thread
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from config import settings
 from friends.models import FriendBrief
 from friends.service import are_mutual_friends
-from pokes.exceptions import CannotPokeSelfError, NotMutualFriendsError, PokeRateLimitedError
+from pokes.exceptions import (
+    CannotPokeSelfError,
+    NotMutualFriendsError,
+    PokeRateLimitedError,
+)
 from pokes.models import PokeResponse, PokeStatus, PokeThread
 from pokes.schemas import Poke
+from pokes.ws_manager import poke_connections
 from push.service import notify_user
 from users.exceptions import UserNotFoundError
 from users.schemas import User
@@ -35,6 +42,7 @@ class PokeService:
             can_poke=self._can_poke(other_user_id),
             streak=self._streak(other_user_id),
             mutual=are_mutual_friends(self.db, self.logged_in_user_id, other_user_id),
+            cooldown_seconds=self._cooldown_seconds(other_user_id),
         )
 
     def list_threads(self) -> list[PokeThread]:
@@ -69,6 +77,7 @@ class PokeService:
                     last_poke_mine=last_poke is not None
                     and last_poke.from_user_id == self.logged_in_user_id,
                     mutual=are_mutual_friends(self.db, self.logged_in_user_id, other_id),
+                    cooldown_seconds=self._cooldown_seconds(other_id),
                 )
             )
         return threads
@@ -105,17 +114,27 @@ class PokeService:
 
         streak = self._streak(other_user_id)
 
-        # Only push if it's actually the recipient's turn to act (mirrors _can_poke
-        # from their side) - they may still owe their own rate-limit cooldown even
-        # though we just poked them, and a push that arrives before they can act
-        # back would be premature.
-        if PokeService(self.db, other_user_id)._can_poke(self.logged_in_user_id):
-            notify_user(
-                self.db,
-                other_user_id,
-                title=f"{self.logged_in_user.name} poked you!",
-                body=f"Streak: {streak}",
-            )
+        recipient_service = PokeService(self.db, other_user_id)
+        recipient_can_poke = recipient_service._can_poke(self.logged_in_user_id)
+
+        notify_user(
+            self.db,
+            other_user_id,
+            title=f"{self.logged_in_user.name} poked you!",
+            body=f"Streak: {streak}",
+        )
+        run_async_from_thread(
+            poke_connections.send_to_user,
+            other_user_id,
+            {
+                "type": "poke",
+                "from_user_id": self.logged_in_user_id,
+                "from_user_name": self.logged_in_user.name,
+                "streak": streak,
+                "can_poke": recipient_can_poke,
+                "cooldown_seconds": recipient_service._cooldown_seconds(self.logged_in_user_id),
+            },
+        )
 
         return PokeResponse(
             user_id=other_user_id,
@@ -178,3 +197,17 @@ class PokeService:
 
         elapsed = datetime.now(UTC).replace(tzinfo=None) - own_last_poke.timestamp
         return elapsed >= timedelta(seconds=settings.POKE_RATE_LIMIT_SECONDS)
+
+    def _cooldown_seconds(self, other_user_id: int) -> int:
+        """
+        Seconds left on our own rate limit against `other_user_id`, i.e. how long
+        until we could poke again once they've responded. 0 if we have no poke
+        history with them, or the rate limit has already elapsed.
+        """
+        own_last_poke = self._last_own_poke(other_user_id)
+        if own_last_poke is None:
+            return 0
+
+        elapsed = datetime.now(UTC).replace(tzinfo=None) - own_last_poke.timestamp
+        remaining = timedelta(seconds=settings.POKE_RATE_LIMIT_SECONDS) - elapsed
+        return max(0, ceil(remaining.total_seconds()))

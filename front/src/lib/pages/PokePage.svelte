@@ -3,10 +3,13 @@
   import { ApiError } from "../api/client";
   import { listFriends } from "../api/friends";
   import { checkPoke, listPokeThreads, sendPoke } from "../api/pokes";
+  import type { PokeEvent } from "../api/types";
   import Card from "../components/Card.svelte";
   import PokeButton from "../components/PokeButton.svelte";
   import PokeListRow from "../components/PokeListRow.svelte";
   import type { PokeButtonStatus } from "../components/pokeButtonStatus";
+  import { playPokeSound } from "../pokeSound";
+  import { pokeSocket } from "../stores/pokeSocket.svelte";
   import { settings } from "../stores/settings.svelte";
   import { toasts } from "../stores/toast.svelte";
 
@@ -19,14 +22,84 @@
     mutual: boolean;
     pending: boolean;
     pokeTrigger: number;
+    /** Epoch ms when our own rate limit against them elapses; null if not cooling down. */
+    cooldownUntil: number | null;
   }
 
   let entries = $state<PokeEntry[]>([]);
   let loading = $state(true);
+  let now = $state(Date.now());
 
   onMount(() => {
     void load();
+    const unsubscribe = pokeSocket.onPoke(handlePokeEvent);
+    return () => {
+      unsubscribe();
+      stopTicking();
+    };
   });
+
+  // Ticks `now` once a second, only while some entry is actively cooling down,
+  // and flips those entries back to "ready" itself once their countdown elapses -
+  // that transition has no server event to tell us about it.
+  let tickHandle: ReturnType<typeof setInterval> | null = null;
+
+  $effect(() => {
+    const hasCooldown = entries.some((e) => e.cooldownUntil !== null);
+    if (hasCooldown) {
+      startTicking();
+    } else {
+      stopTicking();
+    }
+  });
+
+  function startTicking(): void {
+    if (tickHandle !== null) return;
+    tickHandle = setInterval(() => {
+      now = Date.now();
+      for (const entry of entries) {
+        if (entry.cooldownUntil !== null && entry.cooldownUntil <= now) {
+          entry.canPoke = true;
+          entry.cooldownUntil = null;
+        }
+      }
+    }, 1000);
+  }
+
+  function stopTicking(): void {
+    if (tickHandle === null) return;
+    clearInterval(tickHandle);
+    tickHandle = null;
+  }
+
+  function cooldownUntilFrom(cooldownSeconds: number): number | null {
+    return cooldownSeconds > 0 ? Date.now() + cooldownSeconds * 1000 : null;
+  }
+
+  function cooldownSecondsFor(entry: PokeEntry): number {
+    if (entry.cooldownUntil === null) return 0;
+    return Math.max(0, Math.ceil((entry.cooldownUntil - now) / 1000));
+  }
+
+  /**
+   * A friend poked us in real time. If we already know about them, update their
+   * entry in place (no refetch, so the burst animation/sound plays); a poke from
+   * someone with no existing entry means a brand-new thread, so just reload.
+   */
+  function handlePokeEvent(event: PokeEvent): void {
+    const entry = entries.find((e) => e.id === event.from_user_id);
+    if (!entry) {
+      void load();
+      return;
+    }
+    entry.streak = event.streak;
+    entry.canPoke = event.can_poke;
+    entry.lastPokeMine = false;
+    entry.cooldownUntil = cooldownUntilFrom(event.cooldown_seconds);
+    entry.pokeTrigger += 1;
+    playPokeSound();
+    toasts.push(`${event.from_user_name} poked you!`, "info");
+  }
 
   async function load(): Promise<void> {
     loading = true;
@@ -43,6 +116,7 @@
           mutual: thread.mutual,
           pending: false,
           pokeTrigger: 0,
+          cooldownUntil: cooldownUntilFrom(thread.cooldown_seconds),
         });
       }
 
@@ -60,6 +134,7 @@
           mutual: status.mutual,
           pending: false,
           pokeTrigger: 0,
+          cooldownUntil: cooldownUntilFrom(status.cooldown_seconds),
         });
       });
 
@@ -86,6 +161,7 @@
       entry.streak = result.current_streak;
       entry.canPoke = false;
       entry.lastPokeMine = true;
+      entry.cooldownUntil = null;
       entry.pokeTrigger += 1;
     } catch (err) {
       toasts.push(err instanceof ApiError ? err.message : "Poke failed.", "error");
@@ -120,6 +196,7 @@
             name={entry.name}
             streak={entry.streak}
             status={statusFor(entry)}
+            cooldownSeconds={cooldownSecondsFor(entry)}
             pokeTrigger={entry.pokeTrigger}
             onpoke={() => poke(entry)}
           />
@@ -133,6 +210,7 @@
           name={entry.name}
           streak={entry.streak}
           status={statusFor(entry)}
+          cooldownSeconds={cooldownSecondsFor(entry)}
           pokeTrigger={entry.pokeTrigger}
           onpoke={() => poke(entry)}
         />

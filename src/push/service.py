@@ -1,6 +1,7 @@
 import json
 import logging
 
+from py_vapid import VapidException
 from pywebpush import WebPushException, webpush
 from requests import RequestException
 from sqlalchemy import select
@@ -83,3 +84,5 @@ def notify_user(db: Session, user_id: int, title: str, body: str) -> None:
                 logger.warning("Push delivery failed for user %s: %s", user_id, exc)
         except RequestException as exc:
             logger.warning("Push delivery failed for user %s: %s", user_id, exc)
+        except VapidException as exc:
+            logger.error("Push delivery failed for user %s due to VAPID misconfiguration: %s", user_id, exc)

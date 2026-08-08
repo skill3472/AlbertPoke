@@ -34,6 +34,7 @@ export interface PokeStatus {
   can_poke: boolean;
   streak: number;
   mutual: boolean;
+  cooldown_seconds: number;
 }
 
 export interface PokeThread {
@@ -42,6 +43,7 @@ export interface PokeThread {
   can_poke: boolean;
   last_poke_mine: boolean;
   mutual: boolean;
+  cooldown_seconds: number;
 }
 
 export interface VapidPublicKey {
@@ -52,6 +54,15 @@ export type PokeLayout = "list" | "tiles";
 
 export interface UserSettings {
   poke_layout: PokeLayout;
+}
+
+export interface PokeEvent {
+  type: "poke";
+  from_user_id: number;
+  from_user_name: string;
+  streak: number;
+  can_poke: boolean;
+  cooldown_seconds: number;
 }
 
 export interface AltchaChallenge {

@@ -7,12 +7,14 @@
     name: string;
     streak: number;
     status: PokeButtonStatus;
+    /** Seconds left on our own rate limit; only meaningful while status is "cooldown". */
+    cooldownSeconds?: number;
     /** Bump this number whenever a poke succeeds to replay the celebration. */
     pokeTrigger: number;
     onpoke: () => void;
   }
 
-  let { name, streak, status, pokeTrigger, onpoke }: Props = $props();
+  let { name, streak, status, cooldownSeconds = 0, pokeTrigger, onpoke }: Props = $props();
 
   let flashing = $state(false);
   let firstRun = true;
@@ -32,13 +34,15 @@
 
   const emoji = $derived(streak > 100 ? "💯" : streak > 10 ? "🔥" : "");
 
-  const label: Record<PokeButtonStatus, string> = {
+  const staticLabel: Record<Exclude<PokeButtonStatus, "cooldown">, string> = {
     ready: "Poke",
     poked: "Poked",
-    cooldown: "Wait",
     locked: "Not Mutual",
     pending: "...",
   };
+  const label = $derived(
+    status === "cooldown" ? `Wait (${cooldownSeconds}s)` : staticLabel[status],
+  );
 </script>
 
 <div
@@ -64,7 +68,7 @@
       onpoke();
     }}
   >
-    {label[status]}
+    {label}
   </Button>
 </div>
 
