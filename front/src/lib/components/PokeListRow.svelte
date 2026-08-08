@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { playPokeSound } from "../pokeSound";
   import type { PokeButtonStatus } from "./pokeButtonStatus";
   import Button from "./Button.svelte";
 
@@ -58,7 +59,10 @@
     size="sm"
     variant={status === "ready" ? "primary" : "secondary"}
     disabled={status !== "ready"}
-    onclick={onpoke}
+    onclick={() => {
+      playPokeSound();
+      onpoke();
+    }}
   >
     {label[status]}
   </Button>

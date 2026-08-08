@@ -18,6 +18,6 @@ A gag social platform, supposed Facebook Pokes alternative.
 - [ ] Avatars
 - [ ] Leaderboards (global and friends only)
 - [ ] Themes in user settings
-- [ ] Sounds
+- [x] Sounds
 - [x] Fixing mobile layout
 - [ ] 2FA? xD

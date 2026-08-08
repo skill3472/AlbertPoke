@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { playPokeSound } from "../pokeSound";
   import type { PokeButtonStatus } from "./pokeButtonStatus";
 
   interface Props {
@@ -72,7 +73,10 @@
         ? 'border-border-strong bg-primary text-primary-fg shadow-hard'
         : ''} {bursting ? 'animate-poke-pulse' : ''}"
       disabled={status !== "ready"}
-      onclick={onpoke}
+      onclick={() => {
+        playPokeSound();
+        onpoke();
+      }}
     >
       {label[status]}
     </button>
