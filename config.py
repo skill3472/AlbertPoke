@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     # Auth
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440 # 1 day by default
 
     # Captcha (Altcha)
     ALTCHA_HMAC_KEY: str
