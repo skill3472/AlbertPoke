@@ -23,17 +23,33 @@ class PokeSocketStore {
   connect(): void {
     if (this.shouldConnect) return;
     this.shouldConnect = true;
+    document.addEventListener("visibilitychange", this.handleVisibilityChange);
     this.open();
   }
 
   disconnect(): void {
     this.shouldConnect = false;
+    document.removeEventListener("visibilitychange", this.handleVisibilityChange);
     if (this.reconnectTimer !== null) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = null;
     this.socket?.close();
     this.socket = null;
     this.connected = false;
   }
+
+  // Backgrounded tabs can have their reconnect timer throttled by the browser well past
+  // its nominal delay, and can lose the socket outright without a timely `onclose`. Coming
+  // back to the tab is the moment a resync matters most, so reconnect immediately instead
+  // of waiting out a stale backoff.
+  private handleVisibilityChange = (): void => {
+    if (document.visibilityState !== "visible" || !this.shouldConnect || this.socket !== null) {
+      return;
+    }
+    if (this.reconnectTimer !== null) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
+    this.reconnectDelayMs = 1000;
+    this.open();
+  };
 
   /** Registers a poke listener; call the returned function to unregister it. */
   onPoke(listener: Listener): () => void {

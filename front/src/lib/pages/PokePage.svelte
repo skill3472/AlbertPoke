@@ -39,6 +39,22 @@
     };
   });
 
+  // The socket has no replay - a poke that lands while we're disconnected (backgrounded
+  // tab, brief network drop, laptop sleep) is lost. A push notification can still get
+  // through in that window since it's delivered by the service worker, independent of
+  // this connection, so without this the button can go stale until a manual refresh.
+  // Resync from the server every time we come back from a drop.
+  let hasConnectedBefore = false;
+  let wasConnected = false;
+  $effect(() => {
+    const isConnected = pokeSocket.connected;
+    if (isConnected && hasConnectedBefore && !wasConnected) {
+      void load();
+    }
+    if (isConnected) hasConnectedBefore = true;
+    wasConnected = isConnected;
+  });
+
   // Ticks `now` once a second, only while some entry is actively cooling down,
   // and flips those entries back to "ready" itself once their countdown elapses -
   // that transition has no server event to tell us about it.
