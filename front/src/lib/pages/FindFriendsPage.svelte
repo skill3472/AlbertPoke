@@ -38,6 +38,7 @@
       results = found.filter((user) => user.id !== auth.user?.id);
       searched = true;
     } catch (err) {
+      if (err instanceof ApiError && err.status === 401) return;
       toasts.push(err instanceof ApiError ? err.message : "Search failed.", "error");
     } finally {
       searching = false;
@@ -55,6 +56,7 @@
       );
     } catch (err) {
       addStates[user.id] = "idle";
+      if (err instanceof ApiError && err.status === 401) return;
       toasts.push(err instanceof ApiError ? err.message : "Could not add friend.", "error");
     }
   }

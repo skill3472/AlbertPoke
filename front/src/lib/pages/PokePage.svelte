@@ -140,6 +140,7 @@
 
       entries = Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
     } catch (err) {
+      if (err instanceof ApiError && err.status === 401) return;
       toasts.push(err instanceof ApiError ? err.message : "Failed to load pokes.", "error");
     } finally {
       loading = false;
@@ -164,7 +165,9 @@
       entry.cooldownUntil = null;
       entry.pokeTrigger += 1;
     } catch (err) {
-      toasts.push(err instanceof ApiError ? err.message : "Poke failed.", "error");
+      if (!(err instanceof ApiError && err.status === 401)) {
+        toasts.push(err instanceof ApiError ? err.message : "Poke failed.", "error");
+      }
     } finally {
       entry.pending = false;
     }

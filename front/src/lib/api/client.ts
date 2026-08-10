@@ -15,6 +15,13 @@ function getToken(): string | null {
   return localStorage.getItem(TOKEN_STORAGE_KEY);
 }
 
+let unauthorizedHandler: (() => void) | null = null;
+
+/** Registered by the auth store so a 401 from any request can trigger a logout + redirect. */
+export function setUnauthorizedHandler(handler: () => void): void {
+  unauthorizedHandler = handler;
+}
+
 function buildQuery(params?: Record<string, string | number | undefined>): string {
   if (!params) return "";
   const search = new URLSearchParams();
@@ -54,6 +61,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     } catch {
       // Response body wasn't JSON; fall back to statusText.
     }
+    if (res.status === 401) unauthorizedHandler?.();
     throw new ApiError(res.status, detail);
   }
 

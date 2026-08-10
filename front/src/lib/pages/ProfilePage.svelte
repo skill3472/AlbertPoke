@@ -56,6 +56,7 @@
         viewedUser = null;
       }
     } catch (err) {
+      if (err instanceof ApiError && err.status === 401) return;
       toasts.push(err instanceof ApiError ? err.message : "Failed to load profile.", "error");
     } finally {
       loading = false;
@@ -80,6 +81,7 @@
         "success",
       );
     } catch (err) {
+      if (err instanceof ApiError && err.status === 401) return;
       toasts.push(err instanceof ApiError ? err.message : "Could not add friend.", "error");
     } finally {
       adding = false;
