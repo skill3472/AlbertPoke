@@ -22,6 +22,8 @@
     mutual: boolean;
     pending: boolean;
     pokeTrigger: number;
+    /** Bumped only when they poke us (not when we poke them), to drive the "you got poked" name animation. */
+    receivedPokeTrigger: number;
     /** Epoch ms when our own rate limit against them elapses; null if not cooling down. */
     cooldownUntil: number | null;
   }
@@ -113,6 +115,7 @@
     entry.lastPokeMine = false;
     entry.cooldownUntil = cooldownUntilFrom(event.cooldown_seconds);
     entry.pokeTrigger += 1;
+    entry.receivedPokeTrigger += 1;
     playPokeSound();
     toasts.push(`${event.from_user_name} poked you!`, "info");
   }
@@ -132,6 +135,7 @@
           mutual: thread.mutual,
           pending: false,
           pokeTrigger: 0,
+          receivedPokeTrigger: 0,
           cooldownUntil: cooldownUntilFrom(thread.cooldown_seconds),
         });
       }
@@ -150,6 +154,7 @@
           mutual: status.mutual,
           pending: false,
           pokeTrigger: 0,
+          receivedPokeTrigger: 0,
           cooldownUntil: cooldownUntilFrom(status.cooldown_seconds),
         });
       });
@@ -217,6 +222,7 @@
             status={statusFor(entry)}
             cooldownSeconds={cooldownSecondsFor(entry)}
             pokeTrigger={entry.pokeTrigger}
+            pokedTrigger={entry.receivedPokeTrigger}
             onpoke={() => poke(entry)}
           />
         </Card>
@@ -231,6 +237,7 @@
           status={statusFor(entry)}
           cooldownSeconds={cooldownSecondsFor(entry)}
           pokeTrigger={entry.pokeTrigger}
+          pokedTrigger={entry.receivedPokeTrigger}
           onpoke={() => poke(entry)}
         />
       {/each}

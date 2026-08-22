@@ -11,10 +11,20 @@
     cooldownSeconds?: number;
     /** Bump this number whenever a poke succeeds to replay the celebration. */
     pokeTrigger: number;
+    /** Bump this number when they poke us to replay the "you got poked" name animation. */
+    pokedTrigger: number;
     onpoke: () => void;
   }
 
-  let { name, streak, status, cooldownSeconds = 0, pokeTrigger, onpoke }: Props = $props();
+  let {
+    name,
+    streak,
+    status,
+    cooldownSeconds = 0,
+    pokeTrigger,
+    pokedTrigger,
+    onpoke,
+  }: Props = $props();
 
   let flashing = $state(false);
   let firstRun = true;
@@ -29,6 +39,22 @@
     const timeout = setTimeout(() => {
       flashing = false;
     }, 500);
+    return () => clearTimeout(timeout);
+  });
+
+  let namePoked = $state(false);
+  let namePokedFirstRun = true;
+
+  $effect(() => {
+    void pokedTrigger;
+    if (namePokedFirstRun) {
+      namePokedFirstRun = false;
+      return;
+    }
+    namePoked = true;
+    const timeout = setTimeout(() => {
+      namePoked = false;
+    }, 700);
     return () => clearTimeout(timeout);
   });
 
@@ -51,7 +77,11 @@
     : ''}"
 >
   <div class="flex min-w-0 items-center gap-3">
-    <span class="text-text truncate font-mono font-bold uppercase">{name}</span>
+    <span
+      class="text-text truncate font-mono font-bold uppercase {namePoked
+        ? 'animate-poked-name'
+        : ''}">{name}</span
+    >
     <span class="text-text-muted flex shrink-0 items-center gap-1 font-mono text-sm">
       {streak}
       {#if emoji}
@@ -89,5 +119,24 @@
   }
   .animate-poke-emoji {
     animation: poke-emoji-pop 0.5s ease-out;
+  }
+
+  @keyframes poked-name {
+    0% {
+      transform: scale(1) rotate(0deg);
+    }
+    30% {
+      transform: scale(1.4) rotate(-10deg);
+    }
+    60% {
+      transform: scale(1.15) rotate(6deg);
+    }
+    100% {
+      transform: scale(1) rotate(0deg);
+    }
+  }
+  .animate-poked-name {
+    display: inline-block;
+    animation: poked-name 0.7s ease-out;
   }
 </style>
