@@ -7,8 +7,9 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
-COPY config.py ./
+COPY config.py alembic.ini ./
 COPY src ./src
+COPY alembic ./alembic
 RUN uv sync --frozen --no-dev
 
 RUN mkdir -p /app/data

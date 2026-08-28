@@ -100,7 +100,30 @@ jobs:
             echo "VAPID_SUBJECT=${{ vars.VAPID_SUBJECT }}" >> .env
             echo "POKE_RATE_LIMIT_SECONDS"=${{ vars.POKE_RATE_LIMIT_SECONDS }} >> .env
 
+            mkdir -p backups
+
+            if [ -n "$(docker compose ps -q backend)" ]; then
+              echo "Backing up database..."
+              timestamp=$(date +%Y%m%d_%H%M%S)
+              docker compose exec -T backend python -c "
+            import sqlite3
+            src = sqlite3.connect('/app/data/albertpoke.db')
+            dst = sqlite3.connect('/app/data/backup_tmp.db')
+            with dst:
+                src.backup(dst)
+            src.close()
+            dst.close()
+            "
+              docker compose cp "backend:/app/data/backup_tmp.db" "backups/albertpoke_${timestamp}.db"
+              docker compose exec -T backend rm -f /app/data/backup_tmp.db
+            else
+              echo "No running backend container found, skipping backup"
+            fi
+
             docker compose pull
+
+            echo "Applying database migrations..."
+            docker compose run --rm backend uv run alembic upgrade head
 
             docker compose up -d --remove-orphans
 
