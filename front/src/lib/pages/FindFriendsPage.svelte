@@ -1,6 +1,6 @@
 <script lang="ts">
   import { ApiError } from "../api/client";
-  import { addFriend } from "../api/friends";
+  import { addFriend, checkMutualFriends, listFriends } from "../api/friends";
   import { searchUsers } from "../api/users";
   import type { UserRead } from "../api/types";
   import Button from "../components/Button.svelte";
@@ -37,12 +37,29 @@
       const found = await searchUsers(trimmed);
       results = found.filter((user) => user.id !== auth.user?.id);
       searched = true;
+      await loadExistingStatuses(results);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) return;
       toasts.push(err instanceof ApiError ? err.message : "Search failed.", "error");
     } finally {
       searching = false;
     }
+  }
+
+  async function loadExistingStatuses(users: UserRead[]): Promise<void> {
+    const myId = auth.user?.id;
+    if (myId === undefined) return;
+    const friends = await listFriends();
+    const friendIds = new Set(friends.map((friend) => friend.id));
+
+    await Promise.all(
+      users
+        .filter((user) => friendIds.has(user.id))
+        .map(async (user) => {
+          const { mutual } = await checkMutualFriends(myId, user.id);
+          addStates[user.id] = mutual ? "mutual" : "added";
+        }),
+    );
   }
 
   async function add(user: UserRead): Promise<void> {
