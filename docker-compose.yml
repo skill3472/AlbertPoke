@@ -3,7 +3,7 @@ services:
     image: ${BACKEND_IMAGE_NAME}
     env_file: .env
     volumes:
-      - db_data:/app/data
+      - ./db:/app/data
     restart: unless-stopped
 
   frontend:
@@ -13,6 +13,3 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
-
-volumes:
-  db_data:
